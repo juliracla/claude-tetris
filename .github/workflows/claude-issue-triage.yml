@@ -1,0 +1,106 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+concurrency:
+  group: issue-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    # No correr sobre PRs, ni sobre eventos generados por bots (evita bucles),
+    # ni sobre issues que ya invocan a @claude (los atiende claude.yml).
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.sender.type != 'Bot' &&
+      !contains(github.event.issue.title, '@claude') &&
+      !contains(github.event.issue.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Triage con Claude
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
+            --allowedTools "Read,Grep,Glob,Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(gh label list:*)"
+          prompt: |
+            Eres el triador de issues del repositorio ${{ github.repository }}
+            (Tetris en JavaScript vanilla sobre HTML5 Canvas: `index.html`, `style.css`, `game.js`;
+            sin build, sin dependencias, sin tests). Toda tu salida va en español.
+
+            Issue a analizar: #${{ github.event.issue.number }}
+            Evento: ${{ github.event.action }}
+
+            ## Pasos
+
+            1. Lee el issue completo:
+               `gh issue view ${{ github.event.issue.number }} --json title,body,labels,comments`
+            2. Lee `CLAUDE.md` y el código relevante (`game.js`, `index.html`, `style.css`) para
+               fundamentar el diagnóstico en el código real, no en suposiciones.
+            3. Asigna labels **únicamente** de este catálogo cerrado. NUNCA crees labels nuevas ni
+               inventes nombres. Aplica una de tipo, una o más de área, y una de prioridad:
+               - Tipo: `bug`, `enhancement`, `question`, `docs`
+               - Área: `area:gameplay`, `area:rendering`, `area:input`, `area:scoring`, `area:ui`, `area:build`
+               - Prioridad: `priority:alta`, `priority:media`, `priority:baja`
+               - Estado: `needs-info` (solo si falta información esencial para reproducir/diagnosticar)
+               Aplícalas con:
+               `gh issue edit ${{ github.event.issue.number }} --add-label "tipo,area,prioridad"`
+               Si una label no existe todavía en el repo el comando fallará: en ese caso omítela,
+               continúa con las demás y menciónalo al final del comentario.
+            4. Publica el diagnóstico como **comentario** con
+               `gh issue comment ${{ github.event.issue.number }} --body-file <archivo>`.
+               Si en los comentarios ya existe uno que contiene el marcador `<!-- claude-triage -->`,
+               este es un re-análisis: titula el comentario "Diagnóstico actualizado" y céntrate en
+               lo que cambió respecto al anterior, sin repetirlo entero.
+
+            ## Formato del comentario
+
+            La primera línea debe ser exactamente `<!-- claude-triage -->` y luego:
+
+            ## 🔍 Diagnóstico automático
+
+            **Resumen** — 1-2 frases sobre qué se reporta.
+
+            **Tipo y área** — labels aplicadas y por qué.
+
+            **Zona del código implicada** — funciones y líneas concretas, citadas como `game.js:123`.
+            Referencias útiles de la arquitectura: `collide`, `tryRotate`/`rotateCW`, `clearLines`,
+            `lockPiece`, `spawn`, `drawBlock`, `loop`, `init`, y el listener de `keydown` en `document`.
+
+            **Causa probable** — hipótesis apoyada en el código que leíste. Si es especulativa, dilo
+            explícitamente en lugar de afirmarla.
+
+            **Propuesta de solución** — pasos concretos de implementación. Respeta las invariantes
+            documentadas en `CLAUDE.md`:
+            - el índice de color 1-7 es a la vez el tipo de pieza y el índice en `COLORS`/`PIECES`
+              (añadir una pieza implica tocar ambos arrays en el mismo índice);
+            - `collide(shape, ox, oy)` es "test then commit": nunca mover y deshacer;
+            - al reanudar tras pausa hay que resetear `lastTime = performance.now()`;
+            - el canvas está hardcodeado a 300x600 en `index.html`: cambiar `COLS`/`ROWS`/`BLOCK`
+              obliga a actualizar `width`/`height`.
+
+            **Cómo verificar** — no hay tests: describe los pasos manuales para comprobar el arreglo
+            abriendo `index.html` en el navegador.
+
+            **Siguiente paso** — indica que se puede comentar `@claude implementa esta solución`
+            para que se abra un PR con el arreglo.
+
+            ## Restricciones
+
+            - NO modifiques código, NO hagas commits y NO abras PRs en este workflow.
+            - NO edites el título ni el cuerpo del issue: solo labels y un comentario.
+            - Publica exactamente un comentario por ejecución.

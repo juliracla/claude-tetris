@@ -1,0 +1,60 @@
+# Catálogo fijo de labels para el triage automático de issues.
+# Fuente de verdad: el workflow .github/workflows/claude-issue-triage.yml
+# solo puede aplicar labels de esta lista (nunca crear nuevas).
+#
+# Para crearlas/actualizarlas en el repo, ejecuta el workflow
+# "Sync Issue Labels" (Actions -> Run workflow), o localmente:
+#
+#   gh label create "bug" -c "d73a4a" -d "Algo no funciona como debería" --force
+#   ... (una línea por label)
+
+labels:
+  # --- Tipo ---
+  - name: "bug"
+    color: "d73a4a"
+    description: "Algo no funciona como debería"
+  - name: "enhancement"
+    color: "a2eeef"
+    description: "Nueva funcionalidad o mejora"
+  - name: "question"
+    color: "d876e3"
+    description: "Duda o solicitud de aclaración"
+  - name: "docs"
+    color: "0075ca"
+    description: "README, CLAUDE.md o comentarios del código"
+
+  # --- Área (arquitectura de game.js) ---
+  - name: "area:gameplay"
+    color: "1d76db"
+    description: "Piezas, colisión, rotación, wall kicks, lock, spawn"
+  - name: "area:rendering"
+    color: "1d76db"
+    description: "Canvas, drawBlock, ghost, grid, preview NEXT"
+  - name: "area:input"
+    color: "1d76db"
+    description: "Listener de keydown, pausa, hard drop"
+  - name: "area:scoring"
+    color: "1d76db"
+    description: "clearLines, score, lines, level, dropInterval"
+  - name: "area:ui"
+    color: "1d76db"
+    description: "index.html, style.css, textos de la interfaz"
+  - name: "area:build"
+    color: "1d76db"
+    description: "Workflows, GitHub Actions, tooling del repo"
+
+  # --- Prioridad ---
+  - name: "priority:alta"
+    color: "b60205"
+    description: "Rompe el juego o bloquea el uso"
+  - name: "priority:media"
+    color: "fbca04"
+    description: "Molesto pero con workaround"
+  - name: "priority:baja"
+    color: "0e8a16"
+    description: "Cosmético o nice-to-have"
+
+  # --- Estado ---
+  - name: "needs-info"
+    color: "e4e669"
+    description: "Falta información para poder diagnosticar"

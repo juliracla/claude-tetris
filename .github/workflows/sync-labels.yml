@@ -1,0 +1,44 @@
+name: Sync Issue Labels
+
+# Crea/actualiza en el repo el catálogo fijo de labels que usa el triage
+# automático (.github/workflows/claude-issue-triage.yml).
+# Ejecución manual: Actions -> Sync Issue Labels -> Run workflow.
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Crear o actualizar labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Lee .github/labels.yml (name/color/description) sin depender de un parser YAML.
+          python3 - <<'PY' > /tmp/labels.tsv
+          import re
+          entries, cur = [], {}
+          for line in open('.github/labels.yml', encoding='utf-8'):
+              m = re.match(r'\s*-\s+name:\s*"(.*)"\s*$', line)
+              if m:
+                  if cur: entries.append(cur)
+                  cur = {'name': m.group(1)}
+                  continue
+              m = re.match(r'\s+(color|description):\s*"(.*)"\s*$', line)
+              if m and cur:
+                  cur[m.group(1)] = m.group(2)
+          if cur: entries.append(cur)
+          for e in entries:
+              print("\t".join([e['name'], e.get('color', 'ededed'), e.get('description', '')]))
+          PY
+          while IFS=$'\t' read -r name color desc; do
+            [ -z "$name" ] && continue
+            echo "==> $name"
+            gh label create "$name" --color "$color" --description "$desc" --force
+          done < /tmp/labels.tsv
