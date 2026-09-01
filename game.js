@@ -4,7 +4,7 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
+const COLORS_DARK = [
   null,
   '#4dd0e1', // I - cyan
   '#ffd54f', // O - yellow
@@ -14,6 +14,23 @@ const COLORS = [
   '#90caf9', // J - pale blue
   '#ffb74d', // L - orange
 ];
+
+const COLORS_LIGHT = [
+  null,
+  '#00acc1', // I - cyan
+  '#f9a825', // O - yellow
+  '#8e24aa', // T - purple
+  '#43a047', // S - green
+  '#d32f2f', // Z - red
+  '#1e88e5', // J - pale blue
+  '#f57c00', // L - orange
+];
+
+const GRID_COLOR_DARK = '#22222e';
+const GRID_COLOR_LIGHT = '#d5d5e0';
+
+let COLORS = COLORS_DARK;
+let GRID_COLOR = GRID_COLOR_DARK;
 
 const PIECES = [
   null,
@@ -39,6 +56,7 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
+const themeToggle = document.getElementById('theme-toggle');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
@@ -169,7 +187,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = GRID_COLOR;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -273,6 +291,23 @@ function init() {
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
+
+function applyTheme(theme) {
+  document.body.dataset.theme = theme;
+  COLORS = theme === 'light' ? COLORS_LIGHT : COLORS_DARK;
+  GRID_COLOR = theme === 'light' ? GRID_COLOR_LIGHT : GRID_COLOR_DARK;
+  themeToggle.checked = theme === 'light';
+  if (current) draw();
+  if (next) drawNext();
+}
+
+themeToggle.addEventListener('change', () => {
+  const theme = themeToggle.checked ? 'light' : 'dark';
+  localStorage.setItem('theme', theme);
+  applyTheme(theme);
+});
+
+applyTheme(localStorage.getItem('theme') || 'dark');
 
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyP') { togglePause(); return; }
